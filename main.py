@@ -70,17 +70,28 @@ def train_transformer(
     # training params
     model_ckpt = MODELS[model]
     print(model_ckpt)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # I prototype on mac m1 which can use Metal Performance Shaders
+    if torch.backends.mps.is_available():
+        device = torch.device("mps")
+        print("Using MPS Device.")
+    elif torch.cuda.is_available():
+        device = torch.device("cuda")
+        print("Using CUDA Device.")
+    else:
+        device = torch.device("cpu")
+        print("Using CPU Device.")
+
     output = f"{output_dir}/{model_ckpt}-finetuned"
     tokenizer = AutoTokenizer.from_pretrained(model_ckpt)
 
     # max length of 512 for ERNIE as it is not predefined in the model
     if model == "ERNIE":
         test_data, train_data, validation_data, labels = prepare_data(
-            input_path, tokenizer, max_length=512
+            input_path, tokenizer, device, max_length=512
         )
     else:
-        test_data, train_data, validation_data, labels = prepare_data(input_path, tokenizer)
+        test_data, train_data, validation_data, labels = prepare_data(input_path, tokenizer, device)
 
     model = AutoModelForSequenceClassification.from_pretrained(
         model_ckpt, num_labels=len(labels)
