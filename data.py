@@ -35,6 +35,8 @@ def prepare_data(input_path: str, tokenizer, *, shuffle=False, max_length=None):
     train_df = pd.read_csv(DIALOGSUM_PATH + splits["train"])
     validation_df = pd.read_csv(DIALOGSUM_PATH + splits["validation"])
     test_df = pd.read_csv(DIALOGSUM_PATH + splits["test"])
+    # Ensure only the first summary is used for each conversation
+    test_df = test_df[test_df['id'].str.endswith('_1')]
 
     # Join the clusters with the training data
     train_df = train_df.join(clusters.set_index('id'), on='id')
@@ -42,12 +44,12 @@ def prepare_data(input_path: str, tokenizer, *, shuffle=False, max_length=None):
     test_df = test_df.join(clusters.set_index('id'), on='id')
 
     # Separte the text and labels
-    train_text = train_df['summary'].values
-    train_labels = train_df['cluster'].values
-    validation_text = validation_df['summary'].values
-    validation_labels = validation_df['cluster'].values
-    test_text = test_df['summary'].values
-    test_labels = test_df['cluster'].values
+    train_text = train_df['summary'].values.tolist()
+    train_labels = train_df['cluster'].values.tolist()
+    validation_text = validation_df['summary'].values.tolist()
+    validation_labels = validation_df['cluster'].values.tolist()
+    test_text = test_df['summary'].values.tolist()
+    test_labels = test_df['cluster'].values.tolist()
 
 
     if shuffle:
@@ -58,18 +60,18 @@ def prepare_data(input_path: str, tokenizer, *, shuffle=False, max_length=None):
         np.random.shuffle(train_labels)
 
     # tokenize text
-    train_encodings = tokenizer(train_text, truncation=True, padding=True, max_length=max_length)
-    validation_encodings = tokenizer(validation_text, truncation=True, padding=True, max_length=max_length)
-    test_encodings = tokenizer(test_text, truncation=True, padding=True, max_length=max_length)
+    train_encodings = tokenizer(train_text, truncation=True, padding=True, max_length=max_length, return_tensors='pt')
+    validation_encodings = tokenizer(validation_text, truncation=True, padding=True, max_length=max_length, return_tensors='pt')
+    test_encodings = tokenizer(test_text, truncation=True, padding=True, max_length=max_length, return_tensors='pt')
 
     # encode labels to ensure they are treated as categorical
-    train_labels_encoded = [str(label) for label in train_labels]
-    validation_labels_encoded = [str(label) for label in validation_labels]
-    test_labels_encoded = [str(label) for label in test_labels]
+    train_labels_encoded = [int(label) for label in train_labels]
+    validation_labels_encoded = [int(label) for label in validation_labels]
+    test_labels_encoded = [int(label) for label in test_labels]
 
     # create dataset
     train_data = Dataset(train_encodings, train_labels_encoded)
     validation_data = Dataset(validation_encodings, validation_labels_encoded)
     test_data = Dataset(test_encodings, test_labels_encoded)
 
-    return test_data, train_data, validation_data, [str(i) for i in sorted(clusters['cluster'].unique())]
+    return test_data, train_data, validation_data, [int(i) for i in sorted(clusters['cluster'].unique())]
