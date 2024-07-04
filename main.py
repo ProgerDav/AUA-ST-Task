@@ -15,7 +15,7 @@ from transformers import (
     AutoTokenizer,
 )
 
-from data import prepare_data
+from data import prepare_data, DataCollator
 
 try:
     import wandb
@@ -35,7 +35,7 @@ MODELS = {
     "DISTILBERT": "distilbert-base-uncased",
     "ALBERT": "albert-base-v2",
 }
-VALID_MODELS = list(MODELS.keys()) 
+VALID_MODELS = list(MODELS.keys())
 
 
 def compute_metrics(pred):
@@ -91,7 +91,9 @@ def train_transformer(
             input_path, tokenizer, device, max_length=512
         )
     else:
-        test_data, train_data, validation_data, labels = prepare_data(input_path, tokenizer, device)
+        test_data, train_data, validation_data, labels = prepare_data(
+            input_path, tokenizer, device
+        )
 
     model = AutoModelForSequenceClassification.from_pretrained(
         model_ckpt, num_labels=len(labels)
@@ -137,6 +139,7 @@ def train_transformer(
         eval_dataset=test_data,
         compute_metrics=compute_metrics,
         tokenizer=tokenizer,
+        data_collator=DataCollator(tokenizer, device),
     )
 
     trainer.train()
